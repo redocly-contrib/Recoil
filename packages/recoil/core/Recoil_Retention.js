@@ -22,6 +22,7 @@ const gkx = require('recoil-shared/util/Recoil_gkx');
 const nullthrows = require('recoil-shared/util/Recoil_nullthrows');
 const recoverableViolation = require('recoil-shared/util/Recoil_recoverableViolation');
 const someSet = require('recoil-shared/util/Recoil_someSet');
+const {refreshRecoilValue} = require('./Recoil_RecoilValueInterface');
 
 // Components that aren't mounted after suspending for this long will be assumed
 // to be discarded and their resources released.
@@ -298,10 +299,24 @@ function retainedByOptionWithDefault(r: RetainedBy | void): RetainedBy {
   return r === undefined ? 'recoilRoot' : r;
 }
 
+function releaseStore(store) {
+  const state = store.getState();
+  state.nodeCleanupFunctions.forEach(cleanup => cleanup());
+  state.nodeCleanupFunctions.clear();
+  state.knownAtoms.forEach(node => {
+    releaseNode(store, state.currentTree, node);
+  });
+  state.knownSelectors.forEach(node => {
+    refreshRecoilValue(store, {key: node});
+    releaseNode(store, state.currentTree, node);
+  });
+}
+
 module.exports = {
   SUSPENSE_TIMEOUT_MS,
   updateRetainCount,
   updateRetainCountToZero,
   releaseScheduledRetainablesNow,
   retainedByOptionWithDefault,
+  releaseStore,
 };
